@@ -8799,6 +8799,19 @@ class TransformTypos : public TreeTransform<TransformTypos> {
         return false;
       if (!State.Consumer->finished())
         return true;
+
+      // llvm::outs() << "reset " << TypoExprs.size() << " " << State.Consumer->size() << "\n";
+      static int c = 0;
+      if (c < 1000) {
+        llvm::outs() << "TypoExprs: \n";
+        for (auto* TEI: TypoExprs) {
+          // TEI->dump(llvm::outs(), SemaRef.Context);
+          auto &StateI = SemaRef.getTypoExprState(TEI);
+          llvm::outs() << StateI.Consumer->index() << "/" << StateI.Consumer->size() << ": " << StateI.Consumer->typo()->getName()
+                       << " -> " << StateI.Consumer->getCurrentCorrection().getAsString(SemaRef.Context.getLangOpts()) << "\n";
+        }
+        ++c;
+      }
       State.Consumer->resetCorrectionStream();
     }
     return false;
@@ -8822,7 +8835,9 @@ class TransformTypos : public TreeTransform<TransformTypos> {
 
   ExprResult TryTransform(Expr *E) {
     Sema::SFINAETrap Trap(SemaRef);
+    // llvm::outs() << "start\n";
     ExprResult Res = TransformExpr(E);
+    // llvm::outs() << "end\n";
     if (Trap.hasErrorOccurred() || Res.isInvalid())
       return ExprError();
 
@@ -8834,11 +8849,16 @@ class TransformTypos : public TreeTransform<TransformTypos> {
   // only succeed if it is able to correct all typos in the given expression.
   ExprResult CheckForRecursiveTypos(ExprResult Res, bool &IsAmbiguous) {
     if (Res.isInvalid()) {
+      // llvm::outs() << "invalid\n";
       return Res;
     }
     // Check to see if any new TypoExprs were created. If so, we need to recurse
     // to check their validity.
     Expr *FixedExpr = Res.get();
+
+    llvm::outs() << "new type expr created: ";
+    FixedExpr->dump(llvm::outs(), SemaRef.Context);
+    llvm::outs() << "\n";
 
     auto SavedTypoExprs = std::move(TypoExprs);
     auto SavedAmbiguousTypoExprs = std::move(AmbiguousTypoExprs);
@@ -8892,24 +8912,35 @@ class TransformTypos : public TreeTransform<TransformTypos> {
     auto SavedTypoExprs = std::move(SemaRef.TypoExprs);
     SemaRef.TypoExprs.clear();
 
+    llvm::outs() << "RecursiveTransformLoop: \nExpr:";
+    E->dump(llvm::outs(), SemaRef.Context);
+    llvm::outs() << "\n";
+    llvm::outs() << "TypoExprs: " << TypoExprs.size() << "\n";
+    int loop_count = 0;
     while (true) {
+      ++loop_count;
       Res = CheckForRecursiveTypos(TryTransform(E), IsAmbiguous);
 
       // Recursion encountered an ambiguous correction. This means that our
       // correction itself is ambiguous, so stop now.
-      if (IsAmbiguous)
+      if (IsAmbiguous) {
+        llvm::outs() << "is ambiguous\n";
         break;
+      }
 
       // If the transform is still valid after checking for any new typos,
       // it's good to go.
-      if (!Res.isInvalid())
+      if (!Res.isInvalid()) {
+        llvm::outs() << "not invalid\n";
         break;
+      }
 
       // The transform was invalid, see if we have any TypoExprs with untried
       // correction candidates.
       if (!CheckAndAdvanceTypoExprCorrectionStreams())
         break;
     }
+    llvm::outs() << "Loop count: " << loop_count << "\n";
 
     // If we found a valid result, double check to make sure it's not ambiguous.
     if (!IsAmbiguous && !Res.isInvalid() && !AmbiguousTypoExprs.empty()) {
@@ -9002,6 +9033,7 @@ public:
 
   ExprResult Transform(Expr *E) {
     bool IsAmbiguous = false;
+    // entry
     ExprResult Res = RecursiveTransformLoop(E, IsAmbiguous);
 
     if (!Res.isUsable())
@@ -9012,6 +9044,7 @@ public:
     return Res;
   }
 
+  // impl
   ExprResult TransformTypoExpr(TypoExpr *E) {
     // If the TypoExpr hasn't been seen before, record it. Otherwise, return the
     // cached transformation result if there is one and the TypoExpr isn't the
@@ -9066,6 +9099,7 @@ Sema::CorrectDelayedTyposInExpr(Expr *E, VarDecl *InitDecl,
       (E->isTypeDependent() || E->isValueDependent() ||
        E->isInstantiationDependent())) {
     auto TyposResolved = DelayedTypos.size();
+    // entry
     auto Result = TransformTypos(*this, InitDecl, Filter).Transform(E);
     TyposResolved -= DelayedTypos.size();
     if (Result.isInvalid() || Result.get() != E) {
@@ -9118,6 +9152,7 @@ ExprResult Sema::ActOnFinishFullExpr(Expr *FE, SourceLocation CC,
     DiagnoseUnusedExprResult(FullExpr.get(), diag::warn_unused_expr);
   }
 
+  // entry
   FullExpr = CorrectDelayedTyposInExpr(FullExpr.get(), /*InitDecl=*/nullptr,
                                        /*RecoverUncorrectedTypos=*/true);
   if (FullExpr.isInvalid())

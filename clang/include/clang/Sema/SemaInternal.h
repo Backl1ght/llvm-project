@@ -204,6 +204,10 @@ public:
     return CorrectionValidator.get();
   }
 
+  auto size() { return ValidatedCorrections.size(); }
+  auto index() { return CurrentTCIndex; }
+  auto typo() { return Typo; }
+
 private:
   class NamespaceSpecifierSet {
     struct SpecifierInfo {

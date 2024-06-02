@@ -4718,8 +4718,10 @@ void TypoCorrectionConsumer::addCorrection(TypoCorrection Correction) {
       return;
     }
   }
-  if (CList.empty() || Correction.isResolved())
+  if (CList.empty() || Correction.isResolved()) {
     CList.push_back(Correction);
+    llvm::outs() << "On new correction: " << TypoStr << " -> " << Correction.getAsString(SemaRef.Context.getLangOpts()) << "\n";
+  }
 
   while (CorrectionResults.size() > MaxTypoDistanceResultSets)
     CorrectionResults.erase(std::prev(CorrectionResults.end()));

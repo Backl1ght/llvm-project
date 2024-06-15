@@ -1730,7 +1730,9 @@ namespace {
       return Stmt;
     }
 
+    // impl
     ExprResult TransformRequiresExpr(RequiresExpr *E) {
+      llvm::outs() << "TransformRequiresExpr\n";
       LocalInstantiationScope Scope(SemaRef, /*CombineWithOuterScope=*/true);
       ExprResult TransReq = inherited::TransformRequiresExpr(E);
       if (TransReq.isInvalid())
@@ -1738,14 +1740,23 @@ namespace {
       assert(TransReq.get() != E &&
              "Do not change value of isSatisfied for the existing expression. "
              "Create a new expression instead.");
+      llvm::outs() << "TransformRequiresExpr E ";
+      E->dump(llvm::outs(), SemaRef.Context);
+      llvm::outs() << "\n";
+      
+      llvm::outs() << "IS " << E->getBody()->isDependentContext() << "\n";
+      // NOTE(Zhikai Zeng): It seems like access rights is checked here. Emmmm, not here.
       if (E->getBody()->isDependentContext()) {
         Sema::SFINAETrap Trap(SemaRef);
         // We recreate the RequiresExpr body, but not by instantiating it.
         // Produce pending diagnostics for dependent access check.
+        llvm::outs() << "CHECK\n";
         SemaRef.PerformDependentDiagnostics(E->getBody(), TemplateArgs);
         // FIXME: Store SFINAE diagnostics in RequiresExpr for diagnosis.
-        if (Trap.hasErrorOccurred())
+        if (Trap.hasErrorOccurred()) {
+          llvm::outs() << "ERROR\n";
           TransReq.getAs<RequiresExpr>()->setSatisfied(false);
+        }
       }
       return TransReq;
     }
@@ -1753,6 +1764,7 @@ namespace {
     bool TransformRequiresExprRequirements(
         ArrayRef<concepts::Requirement *> Reqs,
         SmallVectorImpl<concepts::Requirement *> &Transformed) {
+      llvm::outs() << "TransformRequiresExprRequirements\n";
       bool SatisfactionDetermined = false;
       for (concepts::Requirement *Req : Reqs) {
         concepts::Requirement *TransReq = nullptr;
@@ -2720,13 +2732,17 @@ TemplateInstantiator::TransformExprRequirement(concepts::ExprRequirement *Req) {
       TransExpr = TransExprRes.get();
   }
 
+  llvm::outs() << "RetReq start\n";
   std::optional<concepts::ExprRequirement::ReturnTypeRequirement> TransRetReq;
   const auto &RetReq = Req->getReturnTypeRequirement();
-  if (RetReq.isEmpty())
+  if (RetReq.isEmpty()) {
+    llvm::outs() << "RetReq 0\n";
     TransRetReq.emplace();
-  else if (RetReq.isSubstitutionFailure())
+  } else if (RetReq.isSubstitutionFailure()) {
+    llvm::outs() << "RetReq 1\n";
     TransRetReq.emplace(RetReq.getSubstitutionDiagnostic());
-  else if (RetReq.isTypeConstraint()) {
+  } else if (RetReq.isTypeConstraint()) {
+    llvm::outs() << "RetReq 2\n";
     TemplateParameterList *OrigTPL =
         RetReq.getTypeConstraintTemplateParameterList();
     TemplateDeductionInfo Info(OrigTPL->getTemplateLoc());
@@ -2734,8 +2750,10 @@ TemplateInstantiator::TransformExprRequirement(concepts::ExprRequirement *Req) {
                                         Req, Info, OrigTPL->getSourceRange());
     if (TPLInst.isInvalid())
       return nullptr;
+    // The root cause is that there is a SFINAE error not processed during `TransformTemplateParameterList`.
+    llvm::outs() << "FUCK " << Trap.hasErrorOccurred() << "\n";
     TemplateParameterList *TPL = TransformTemplateParameterList(OrigTPL);
-    if (!TPL)
+    if (!TPL || Trap.hasErrorOccurred()) // after adding `Trap.hasErrorOccurred()` here the problem resolved.
       TransRetReq.emplace(createSubstDiag(SemaRef, Info,
           [&] (llvm::raw_ostream& OS) {
               RetReq.getTypeConstraint()->getImmediatelyDeclaredConstraint()
@@ -2744,6 +2762,9 @@ TemplateInstantiator::TransformExprRequirement(concepts::ExprRequirement *Req) {
     else {
       TPLInst.Clear();
       TransRetReq.emplace(TPL);
+      llvm::outs() << __FILE__ << ":TPL " << Trap.hasErrorOccurred();
+      TPL->print(llvm::outs(), SemaRef.getASTContext());
+      llvm::outs() << "\n";
     }
   }
   assert(TransRetReq && "All code paths leading here must set TransRetReq");

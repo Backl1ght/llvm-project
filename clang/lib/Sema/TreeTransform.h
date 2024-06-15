@@ -13890,13 +13890,17 @@ TreeTransform<Derived>::TransformExprRequirement(concepts::ExprRequirement *Req)
     TransExpr = TransExprRes.get();
   }
 
+  // RetReq Origin.
   std::optional<concepts::ExprRequirement::ReturnTypeRequirement> TransRetReq;
   const auto &RetReq = Req->getReturnTypeRequirement();
-  if (RetReq.isEmpty())
+  if (RetReq.isEmpty()) {
+    llvm::outs() << __FILE__ << ":RerReq 0\n";
     TransRetReq.emplace();
-  else if (RetReq.isSubstitutionFailure())
+  } else if (RetReq.isSubstitutionFailure()) {
+    llvm::outs() << __FILE__ << ":RerReq 1\n";
     TransRetReq.emplace(RetReq.getSubstitutionDiagnostic());
-  else if (RetReq.isTypeConstraint()) {
+  } else if (RetReq.isTypeConstraint()) {
+    llvm::outs() << __FILE__ << ":RerReq 2\n";
     TemplateParameterList *OrigTPL =
         RetReq.getTypeConstraintTemplateParameterList();
     TemplateParameterList *TPL =

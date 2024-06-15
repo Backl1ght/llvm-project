@@ -9387,7 +9387,12 @@ Sema::BuildExprRequirement(
     assert(TC && "Type Constraint cannot be null here");
     auto *IDC = TC->getImmediatelyDeclaredConstraint();
     assert(IDC && "ImmediatelyDeclaredConstraint can't be null here.");
+    // impl. Maybe we generate wrong AST, or we just forgot to check access.
+    llvm::outs() << "Subst start\n";
     ExprResult Constraint = SubstExpr(IDC, MLTAL);
+    llvm::outs() << "IDC ";
+    IDC->dump(llvm::outs(), Context);
+    llvm::outs() << "\n";
     if (Constraint.isInvalid()) {
       return new (Context) concepts::ExprRequirement(
           concepts::createSubstDiagAt(*this, IDC->getExprLoc(),

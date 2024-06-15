@@ -1090,6 +1090,8 @@ makeTemplateArgumentListInfo(Sema &S, TemplateIdAnnotation &TemplateId) {
 
 bool Sema::CheckTypeConstraint(TemplateIdAnnotation *TypeConstr) {
 
+  llvm::outs() << "CheckTypeConstraint\n";
+
   TemplateName TN = TypeConstr->Template.get();
   ConceptDecl *CD = cast<ConceptDecl>(TN.getAsTemplateDecl());
 

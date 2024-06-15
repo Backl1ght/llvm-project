@@ -3693,6 +3693,8 @@ ExprResult Parser::ParseRequiresExpression() {
           Diag(Tok, diag::err_requires_expr_missing_arrow)
               << FixItHint::CreateInsertion(Tok.getLocation(), "->");
         // Try to parse a 'type-constraint'
+        // TODO(Zhikai Zeng): add comments for why we should add access check for return-type-requirement.
+        SuppressAccessChecks ReturnTypeRequirementAccessChecks(*this);
         if (TryAnnotateTypeConstraint()) {
           SkipUntil(tok::semi, tok::r_brace, SkipUntilFlags::StopBeforeMatch);
           break;

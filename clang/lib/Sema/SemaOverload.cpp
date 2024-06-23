@@ -7726,14 +7726,19 @@ void Sema::AddMethodTemplateCandidate(
           PartialOverloading, /*AggregateDeductionCandidate=*/false, ObjectType,
           ObjectClassification,
           [&](ArrayRef<QualType> ParamTypes) {
+            llvm::outs() << __FILE__ << ":" << __LINE__ << ": generate conversions" << "\n";
             return CheckNonDependentConversions(
                 MethodTmpl, ParamTypes, Args, CandidateSet, Conversions,
                 SuppressUserConversions, ActingContext, ObjectType,
                 ObjectClassification, PO);
           });
       Result != TemplateDeductionResult::Success) {
+    // candidate added here.
     OverloadCandidate &Candidate =
         CandidateSet.addCandidate(Conversions.size(), Conversions);
+    llvm::outs() << __FILE__ << ":" << __LINE__ << ": Cand " << reinterpret_cast<void*>(&Candidate) << " generated, conversions at " << reinterpret_cast<void*>(Conversions.data()) << ", init [";
+    for (size_t i = 0; i < Conversions.size(); ++i) llvm::outs() << Conversions[i].isInitialized() << ", ";
+    llvm::outs() << "]\n";
     Candidate.FoundDecl = FoundDecl;
     Candidate.Function = MethodTmpl->getTemplatedDecl();
     Candidate.Viable = false;
@@ -7865,6 +7870,7 @@ bool Sema::CheckNonDependentConversions(
     ConversionSequenceList &Conversions, bool SuppressUserConversions,
     CXXRecordDecl *ActingContext, QualType ObjectType,
     Expr::Classification ObjectClassification, OverloadCandidateParamOrder PO) {
+  // conversion generated here.
   // FIXME: The cases in which we allow explicit conversions for constructor
   // arguments never consider calling a constructor template. It's not clear
   // that is correct.
@@ -7888,6 +7894,7 @@ bool Sema::CheckNonDependentConversions(
   if (HasThisConversion && !cast<CXXMethodDecl>(FD)->isStatic() &&
       !ObjectType.isNull()) {
     unsigned ConvIdx = PO == OverloadCandidateParamOrder::Reversed ? 1 : 0;
+    llvm::outs() << __FILE__ << ":" << __LINE__ << ": " << ConvIdx << "\n";
     if (!FD->hasCXXExplicitFunctionObjectParameter() ||
         !ParamTypes[0]->isDependentType()) {
       Conversions[ConvIdx] = TryObjectArgumentInitialization(
@@ -7898,6 +7905,7 @@ bool Sema::CheckNonDependentConversions(
       if (Conversions[ConvIdx].isBad())
         return true;
     }
+    // Conversions[ConvIdx] is not initialized in this case.
   }
 
   unsigned Offset =
@@ -7920,6 +7928,7 @@ bool Sema::CheckNonDependentConversions(
         // For members, 'this' got ConvIdx = 0 previously.
         ConvIdx = ThisConversions + I;
       }
+      llvm::outs() << __FILE__ << ":" << __LINE__ << ": " << ConvIdx << "\n";
       Conversions[ConvIdx]
         = TryCopyInitialization(*this, Args[I], ParamType,
                                 SuppressUserConversions,
@@ -12146,10 +12155,16 @@ static void NoteFunctionCandidate(Sema &S, OverloadCandidate *Cand,
     return S.NoteOverloadCandidate(Cand->FoundDecl, Fn, Cand->getRewriteKind());
 
   case ovl_fail_bad_conversion: {
+    // entry
+    llvm::outs() << __FUNCTION__ << ": size " << Cand->Conversions.size() << " " << reinterpret_cast<void*>(Cand) << ", init [";
+    for (size_t i = 0; i < Cand->Conversions.size(); ++i) llvm::outs() << Cand->Conversions[i].isInitialized() << ", ";
+    llvm::outs() << "]\n";
     unsigned I = (Cand->IgnoreObjectArgument ? 1 : 0);
-    for (unsigned N = Cand->Conversions.size(); I != N; ++I)
-      if (Cand->Conversions[I].isBad())
+    for (unsigned N = Cand->Conversions.size(); I != N; ++I) {
+      llvm::outs() << __FUNCTION__ << ": abort at conv " << I << "\n";
+      if (Cand->Conversions[I].isInitialized() && Cand->Conversions[I].isBad()) // abort here.
         return DiagnoseBadConversion(S, Cand, I, TakingCandidateAddress);
+    }
 
     // FIXME: this currently happens when we're called from SemaInit
     // when user-conversion overload fails.  Figure out how to handle

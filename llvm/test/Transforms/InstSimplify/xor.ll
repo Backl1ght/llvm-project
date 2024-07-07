@@ -301,3 +301,41 @@ define <2 x i4> @xor_or_and_not_poison_elt(<2 x i4> %a, <2 x i4> %b) {
   %r = xor <2 x i4> %or, %and
   ret <2 x i4> %r
 }
+
+define i1 @xor_of_icmps1(i8 %a, i8 %b) {
+; CHECK-LABEL: @xor_of_icmps1(
+; CHECK-NEXT:    ret i1 true
+;
+  %eq = icmp eq i8 %a, %b
+  %ne = icmp ne i8 %a, %b
+  %r = xor i1 %eq, %ne
+  ret i1 %r
+}
+
+define i1 @xor_of_icmps2(i8 %a, i8 %b) {
+; CHECK-LABEL: @xor_of_icmps2(
+; CHECK-NEXT:    ret i1 true
+;
+  %a_eq = icmp eq i8 %a, 0
+  %b_eq = icmp eq i8 %b, 0
+  %and = and i1 %a_eq, %b_eq
+  %a_ne = icmp ne i8 %a, 0
+  %b_ne = icmp ne i8 %b, 0
+  %or = or i1 %a_ne, %b_ne
+  %r = xor i1 %and, %or
+  ret i1 %r
+}
+
+define i1 @xor_of_icmps3(i8 %a, i8 %b, i8 %c, i8 %d) {
+; CHECK-LABEL: @xor_of_icmps3(
+; CHECK-NEXT:    ret i1 true
+;
+  %a_eq = icmp eq i8 %a, %c
+  %b_eq = icmp eq i8 %b, %d
+  %and = and i1 %a_eq, %b_eq
+  %a_ne = icmp ne i8 %a, %c
+  %b_ne = icmp ne i8 %b, %d
+  %or = or i1 %a_ne, %b_ne
+  %r = xor i1 %and, %or
+  ret i1 %r
+}

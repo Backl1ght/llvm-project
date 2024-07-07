@@ -1941,6 +1941,30 @@ static Value *simplifyAndOrOfCmps(const SimplifyQuery &Q, Value *Op0,
   return nullptr;
 }
 
+static Value *simplifyXorOfICmps(Value *Op0, Value *Op1) {
+  Value *A, *B;
+  // (A == B) ^ (A != B) --> 1
+  ICmpInst::Predicate Pred1, Pred2;
+  if (match(Op0, m_ICmp(Pred1, m_Value(A), m_Value(B))) &&
+      match(Op1, m_ICmp(Pred2, m_Specific(A), m_Specific(B))) &&
+      Pred2 == CmpInst::getInversePredicate(Pred1)) {
+    return Constant::getAllOnesValue(Op0->getType());
+  }
+
+  // (A == C & B == D) ^ (A != C | B != D) --> 1
+  Value *C, *D;
+  ICmpInst::Predicate PredAC1, PredAC2, PredBD1, PredBD2;
+  if (match(Op0, m_c_And(m_ICmp(PredAC1, m_Value(A), m_Value(C)),
+                         m_ICmp(PredBD1, m_Value(B), m_Value(D)))) &&
+      match(Op1, m_c_Or(m_ICmp(PredAC2, m_Specific(A), m_Specific(C)),
+                        m_ICmp(PredBD2, m_Specific(B), m_Specific(D)))) &&
+      PredAC2 == CmpInst::getInversePredicate(PredAC1) &&
+      PredBD2 == CmpInst::getInversePredicate(PredBD1))
+    return Constant::getAllOnesValue(Op0->getType());
+
+  return nullptr;
+}
+
 static Value *simplifyWithOpReplaced(Value *V, Value *Op, Value *RepOp,
                                      const SimplifyQuery &Q,
                                      bool AllowRefinement,
@@ -2596,6 +2620,11 @@ static Value *simplifyXorInst(Value *Op0, Value *Op1, const SimplifyQuery &Q,
   // for threading over phi nodes.
 
   if (Value *V = simplifyByDomEq(Instruction::Xor, Op0, Op1, Q, MaxRecurse))
+    return V;
+
+  if (Value *V = simplifyXorOfICmps(Op0, Op1))
+    return V;
+  if (Value *V = simplifyXorOfICmps(Op1, Op0))
     return V;
 
   return nullptr;

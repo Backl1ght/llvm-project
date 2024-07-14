@@ -900,6 +900,7 @@ bool Sema::CheckFunctionConstraints(const FunctionDecl *FD,
 static unsigned
 CalculateTemplateDepthForConstraints(Sema &S, const NamedDecl *ND,
                                      bool SkipForSpecialization = false) {
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] TEMPLATE DECL PASSED AS ND " << isa<FunctionTemplateDecl>(ND) << " " << isa<FunctionDecl>(ND) << "\n";
   MultiLevelTemplateArgumentList MLTAL = S.getTemplateInstantiationArgs(
       ND, ND->getLexicalDeclContext(), /*Final=*/false,
       /*Innermost=*/std::nullopt,
@@ -1019,6 +1020,7 @@ bool Sema::AreConstraintExpressionsEqual(const NamedDecl *Old,
   return ID1 == ID2;
 }
 
+// entry
 bool Sema::FriendConstraintsDependOnEnclosingTemplate(const FunctionDecl *FD) {
   assert(FD->getFriendObjectKind() && "Must be a friend!");
 
@@ -1031,7 +1033,12 @@ bool Sema::FriendConstraintsDependOnEnclosingTemplate(const FunctionDecl *FD) {
   SmallVector<const Expr *, 3> ACs;
   FD->getDescribedFunctionTemplate()->getAssociatedConstraints(ACs);
 
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] GET DEPTH ";
+  FD->dump(llvm::outs());
+  llvm::outs() << "\n";
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] GET DEPTH START\n";
   unsigned OldTemplateDepth = CalculateTemplateDepthForConstraints(*this, FD);
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] GET DEPTH END\n";
   for (const Expr *Constraint : ACs)
     if (ConstraintExpressionDependsOnEnclosingTemplate(FD, OldTemplateDepth,
                                                        Constraint))

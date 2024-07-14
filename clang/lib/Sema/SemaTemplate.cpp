@@ -1691,10 +1691,15 @@ public:
   using inherited::TransformTemplateTypeParmType;
   QualType TransformTemplateTypeParmType(TypeLocBuilder &TLB,
                                          TemplateTypeParmTypeLoc TL, bool) {
-    assert(TL.getDecl()->getDepth() <= TemplateDepth &&
-           "Nothing should reference a value below the actual template depth, "
-           "depth is likely wrong");
-    if (TL.getDecl()->getDepth() != TemplateDepth)
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] ASSERT " << TL.getDecl()->getDepth() << " <= " << TemplateDepth << "\n";
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] TYPE ";
+    TL.getTypePtr()->dump(llvm::outs(), SemaRef.getASTContext());
+    llvm::outs() << "\n";
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] IS AUTO " << TL.getType()->isPlaceholderType() << "\n";
+    // assert(TL.getDecl()->getDepth() <= TemplateDepth &&
+    //        "Nothing should reference a value below the actual template depth, "
+    //        "depth is likely wrong");
+    if (TL.getDecl()->getDepth() < TemplateDepth)
       Result = true;
     return inherited::TransformTemplateTypeParmType(
         TLB, TL,
@@ -1727,13 +1732,18 @@ public:
 };
 } // namespace
 
+// entry
 bool Sema::ConstraintExpressionDependsOnEnclosingTemplate(
     const FunctionDecl *Friend, unsigned TemplateDepth,
     const Expr *Constraint) {
   assert(Friend->getFriendObjectKind() && "Only works on a friend");
   ConstraintRefersToContainingTemplateChecker Checker(*this, Friend,
                                                       TemplateDepth);
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] CHECK ";
+  Constraint->dump(llvm::outs(), getASTContext());
+  llvm::outs() << "\n";
   Checker.TransformExpr(const_cast<Expr *>(Constraint));
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] CHECK FINISHE\n";
   return Checker.getResult();
 }
 

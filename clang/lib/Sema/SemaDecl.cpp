@@ -9785,6 +9785,7 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
             D.getDeclSpec().getBeginLoc(), D.getIdentifierLoc(),
             D.getCXXScopeSpec(), TemplateId, TemplateParamLists, isFriend,
             isMemberSpecialization, Invalid);
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] VERBOSE TemplateParams = " << TemplateParams << ", TemplateParamLists.size() = " << TemplateParamLists.size() << ", TemplateParams->size() = " << (TemplateParams ? TemplateParams->size() : 0)<< "\n";
     if (TemplateParams) {
       // Check that we can declare a template here.
       if (CheckTemplateDeclScope(S, TemplateParams))
@@ -9821,7 +9822,7 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
         NewFD->setDescribedFunctionTemplate(FunctionTemplate);
 
         // For source fidelity, store the other template param lists.
-        if (TemplateParamLists.size() > 1) {
+        if (TemplateParamLists.size() > 1) { // QUESTION: why 1 here?
           NewFD->setTemplateParameterListsInfo(Context,
               ArrayRef<TemplateParameterList *>(TemplateParamLists)
                   .drop_back(1));
@@ -9877,6 +9878,7 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
       if (isFriend && TemplateId)
         isFunctionTemplateSpecialization = true;
     }
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] VERBOSE isFriend = " << isFriend << ", TemplateId = " << TemplateId << ", isFunctionTemplateSpecialization = " << isFunctionTemplateSpecialization << "\n";
 
     // If this is a function template specialization and the unqualified-id of
     // the declarator-id is a template-id, convert the template argument list
@@ -10750,6 +10752,7 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
   }
 
   if (getLangOpts().CPlusPlus) {
+    // entry
     // Precalculate whether this is a friend function template with a constraint
     // that depends on an enclosing template, per [temp.friend]p9.
     if (isFriend && FunctionTemplate &&

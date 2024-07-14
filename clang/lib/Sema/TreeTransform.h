@@ -4975,7 +4975,9 @@ TypeSourceInfo *TreeTransform<Derived>::TransformType(TypeSourceInfo *DI) {
   TypeLoc TL = DI->getTypeLoc();
   TLB.reserve(TL.getFullDataSize());
 
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 1\n";
   QualType Result = getDerived().TransformType(TLB, TL);
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 2\n";
   if (Result.isNull())
     return nullptr;
 
@@ -4985,6 +4987,7 @@ TypeSourceInfo *TreeTransform<Derived>::TransformType(TypeSourceInfo *DI) {
 template<typename Derived>
 QualType
 TreeTransform<Derived>::TransformType(TypeLocBuilder &TLB, TypeLoc T) {
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] T.getTypeLocClass " << T.getTypePtr()->getTypeClassName() << "\n";
   switch (T.getTypeLocClass()) {
 #define ABSTRACT_TYPELOC(CLASS, PARENT)
 #define TYPELOC(CLASS, PARENT)                                                 \
@@ -5891,6 +5894,7 @@ QualType TreeTransform<Derived>::TransformExtVectorType(TypeLocBuilder &TLB,
   return Result;
 }
 
+// entry
 template <typename Derived>
 ParmVarDecl *TreeTransform<Derived>::TransformFunctionTypeParam(
     ParmVarDecl *OldParm, int indexAdjustment,
@@ -5924,8 +5928,11 @@ ParmVarDecl *TreeTransform<Derived>::TransformFunctionTypeParam(
       = TLB.push<PackExpansionTypeLoc>(Result);
     NewExpansionTL.setEllipsisLoc(OldExpansionTL.getEllipsisLoc());
     NewDI = TLB.getTypeSourceInfo(SemaRef.Context, Result);
-  } else
+  } else {
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 1\n";
     NewDI = getDerived().TransformType(OldDI);
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 2\n";
+  }
   if (!NewDI)
     return nullptr;
 
@@ -6062,9 +6069,12 @@ bool TreeTransform<Derived>::TransformFunctionTypeParams(
                "Parameter pack no longer a parameter pack after "
                "transformation.");
       } else {
+        // it seems like OldParm is wrong if it is `auto`, since clang will not crash after change `auto` to `int`.
+        llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 1\n";
         NewParm = getDerived().TransformFunctionTypeParam(
             OldParm, indexAdjustment, std::nullopt,
             /*ExpectParameterPack=*/false);
+        llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 2\n";
       }
 
       if (!NewParm)
@@ -6214,6 +6224,7 @@ QualType TreeTransform<Derived>::TransformFunctionProtoType(
   QualType ResultType;
 
   if (T->hasTrailingReturn()) {
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 1\n";
     if (getDerived().TransformFunctionTypeParams(
             TL.getBeginLoc(), TL.getParams(),
             TL.getTypePtr()->param_type_begin(),
@@ -6238,16 +6249,21 @@ QualType TreeTransform<Derived>::TransformFunctionProtoType(
     }
   }
   else {
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 2\n";
     ResultType = getDerived().TransformType(TLB, TL.getReturnLoc());
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 3\n";
     if (ResultType.isNull())
       return QualType();
 
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 4\n";
+    // entry
     if (getDerived().TransformFunctionTypeParams(
             TL.getBeginLoc(), TL.getParams(),
             TL.getTypePtr()->param_type_begin(),
             T->getExtParameterInfosOrNull(),
             ParamTypes, &ParamDecls, ExtParamInfos))
       return QualType();
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] 5\n";
   }
 
   FunctionProtoType::ExtProtoInfo EPI = T->getExtProtoInfo();
@@ -14583,8 +14599,10 @@ TreeTransform<Derived>::TransformLambdaExpr(LambdaExpr *E) {
                 TLB, TL.castAs<FunctionProtoTypeLoc>());
           });
     } else {
+      llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] BEGIN\n";
       auto FPTL = OldCallOpTypeLoc.castAs<FunctionProtoTypeLoc>();
       NewCallOpType = TransformFunctionProtoTypeLoc(NewCallOpTLBuilder, FPTL);
+      llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] END\n";
     }
 
     if (NewCallOpType.isNull())

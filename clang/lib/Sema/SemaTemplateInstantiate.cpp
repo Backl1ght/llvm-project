@@ -252,24 +252,35 @@ HandleClassTemplateSpec(const ClassTemplateSpecializationDecl *ClassTemplSpec,
   return Response::UseNextDecl(ClassTemplSpec);
 }
 
+// maybe something wrong here.
 Response HandleFunction(Sema &SemaRef, const FunctionDecl *Function,
                         MultiLevelTemplateArgumentList &Result,
                         const FunctionDecl *Pattern, bool RelativeToPrimary,
                         bool ForConstraintInstantiation) {
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION VVV " << Function->getTemplateSpecializationKind() << " " << Function->getTemplateSpecializationArgs() << " " << Function->getTemplatedKind() << " " << RelativeToPrimary << " " << ForConstraintInstantiation << "\n";
+
+  // if (Function->getDescribedFunctionTemplate()) {
+  //   return Response::ChangeDecl(Function->getDescribedFunctionTemplate());
+  // }
+
   // Add template arguments from a function template specialization.
   if (!RelativeToPrimary &&
       Function->getTemplateSpecializationKindForInstantiation() ==
-          TSK_ExplicitSpecialization)
+          TSK_ExplicitSpecialization) {
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION 1\n";
     return Response::Done();
+  }
 
   if (!RelativeToPrimary &&
       Function->getTemplateSpecializationKind() == TSK_ExplicitSpecialization) {
     // This is an implicit instantiation of an explicit specialization. We
     // don't get any template arguments from this function but might get
     // some from an enclosing template.
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION 2\n";
     return Response::UseNextDecl(Function);
   } else if (const TemplateArgumentList *TemplateArgs =
                  Function->getTemplateSpecializationArgs()) {
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION IN 2\n";
     // Add the template arguments for this specialization.
     Result.addOuterTemplateArguments(const_cast<FunctionDecl *>(Function),
                                      TemplateArgs->asArray(),
@@ -279,14 +290,18 @@ Response HandleFunction(Sema &SemaRef, const FunctionDecl *Function,
         (Function->getTemplateSpecializationKind() ==
              TSK_ExplicitSpecialization ||
          (Function->getFriendObjectKind() &&
-          !Function->getPrimaryTemplate()->getFriendObjectKind())))
+          !Function->getPrimaryTemplate()->getFriendObjectKind()))) {
+      llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION 3\n";
       return Response::UseNextDecl(Function);
+    }
 
     // If this function was instantiated from a specialized member that is
     // a function template, we're done.
     assert(Function->getPrimaryTemplate() && "No function template?");
-    if (Function->getPrimaryTemplate()->isMemberSpecialization())
+    if (Function->getPrimaryTemplate()->isMemberSpecialization()) {
+      llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION 4\n";
       return Response::Done();
+    }
 
     // If this function is a generic lambda specialization, we are done.
     if (!ForConstraintInstantiation &&
@@ -302,13 +317,18 @@ Response HandleFunction(Sema &SemaRef, const FunctionDecl *Function,
         if (isLambdaEnclosedByTypeAliasDecl(
                 /*PrimaryLambdaCallOperator=*/getPrimaryTemplateOfGenericLambda(
                     Function),
-                /*PrimaryTypeAliasDecl=*/TypeAlias.PrimaryTypeAliasDecl))
+                /*PrimaryTypeAliasDecl=*/TypeAlias.PrimaryTypeAliasDecl)) {
+          llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION 5\n";
           return Response::UseNextDecl(Function);
+        }
       }
+
+      llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION 6\n";
       return Response::Done();
     }
 
   } else if (Function->getDescribedFunctionTemplate()) {
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION IN 3 " << ForConstraintInstantiation << " " << Result.getNumSubstitutedLevels() << "\n";
     assert(
         (ForConstraintInstantiation || Result.getNumSubstitutedLevels() == 0) &&
         "Outer template not instantiated?");
@@ -320,11 +340,16 @@ Response HandleFunction(Sema &SemaRef, const FunctionDecl *Function,
   if ((Function->getFriendObjectKind() || Function->isLocalExternDecl()) &&
       Function->getNonTransparentDeclContext()->isFileContext() &&
       (!Pattern || !Pattern->getLexicalDeclContext()->isFileContext())) {
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION 7 " << Function->getLexicalDeclContext() << " " << Function->getDeclContext() << "\n";
     return Response::ChangeDecl(Function->getLexicalDeclContext());
   }
 
-  if (ForConstraintInstantiation && Function->getFriendObjectKind())
+  if (ForConstraintInstantiation && Function->getFriendObjectKind()) {
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION 8\n";
     return Response::ChangeDecl(Function->getLexicalDeclContext());
+  }
+
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] HANDLE FUNCTION 9\n";
   return Response::UseNextDecl(Function);
 }
 
@@ -495,6 +520,9 @@ MultiLevelTemplateArgumentList Sema::getTemplateInstantiationArgs(
   }
 
   while (!CurDecl->isFileContextDecl()) {
+    llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] CUR DECL ";
+    CurDecl->dump(llvm::outs());
+    llvm::outs() << "\n";
     Response R;
     if (const auto *VarTemplSpec =
             dyn_cast<VarTemplateSpecializationDecl>(CurDecl)) {
@@ -536,6 +564,10 @@ MultiLevelTemplateArgumentList Sema::getTemplateInstantiationArgs(
     assert(R.NextDecl);
     CurDecl = R.NextDecl;
   }
+
+  llvm::outs() << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__ << "] DEPTH ND ";
+  ND->dump(llvm::outs());
+  llvm::outs() << "\nDEPTH = " << Result.getNumLevels() << "\n";
 
   return Result;
 }

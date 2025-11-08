@@ -459,7 +459,7 @@ Bug Fixes in This Version
 - Fixed a crash triggered by unterminated ``__has_embed``. (#GH162953)
 - Accept empty enumerations in MSVC-compatible C mode. (#GH114402)
 - Fixed false-positive shadow diagnostics for lambdas in explicit object member functions. (#GH163731)
-- Fixed a incorrect diagnostic for ambiguous function call that use a 
+- Fixed an incorrect diagnostic for ambiguous function call that use a 
   designated-initializer as template argument. (#GH166784)
 
 Bug Fixes to Compiler Builtins
